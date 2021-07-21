@@ -1,5 +1,9 @@
 import sys
 from time import sleep
+import json
+
+from datetime import datetime
+from datetime import date
 
 import pygame
 
@@ -7,6 +11,7 @@ from bullet import Bullets
 from star import Star
 from alien import Alien
 from button import Button
+from score_lbls import ScoreLabel
 
 
 def check_keydown_events(event, ship, bullets, screen, settings, stats):
@@ -30,28 +35,21 @@ def check_keyup_events(event, ship):
         ship.move_down = False
 
 
-def check_events(ship, bullets, screen, settings, stats, play_button, sound_button, scores_button, exit_button, sb, aliens, input_box):
+def check_events(ship, bullets, screen, settings, stats, play_button, sound_button, scores_button, exit_button, sb, aliens, image, image_rect):
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             sys.exit()
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            check_buttons(mouse_x, mouse_y, play_button, sound_button, scores_button, exit_button, stats, sb, screen, settings, aliens)
-            if input_box.input_box.collidepoint(mouse_x, mouse_y) and stats.ships_left <= 0:
-                input_box.active = True
+            check_buttons(mouse_x, mouse_y, play_button, sound_button, scores_button, exit_button, stats, sb, screen, settings, aliens, image, image_rect, ship, bullets)
         elif event.type == pygame.KEYDOWN:
-            if input_box.active:
-                if event.key == pygame.K_BACKSPACE:
-                    input_box.text = input_box.text[:-1]
-                else:
-                    input_box.text += event.unicode
             if stats.game_active:
                 check_keydown_events(event, ship, bullets, screen, settings, stats)
         elif event.type == pygame.KEYUP:
             check_keyup_events(event, ship)
 
 
-def check_buttons(mouse_x, mouse_y, play_button, sound_button, scores_button, exit_button, stats, sb, screen, settings, aliens):
+def check_buttons(mouse_x, mouse_y, play_button, sound_button, scores_button, exit_button, stats, sb, screen, settings, aliens, image, image_rect, ship, bullets):
     play_button_clicked = play_button.rect.collidepoint(mouse_x, mouse_y)
     sound_button_clicked = sound_button.rect.collidepoint(mouse_x, mouse_y)
     scores_button_clicked = scores_button.rect.collidepoint(mouse_x, mouse_y)
@@ -78,7 +76,64 @@ def check_buttons(mouse_x, mouse_y, play_button, sound_button, scores_button, ex
             sound_button.prep_msg()
             sound_button.draw_button()
             sound_button_clicked = False
+    elif scores_button_clicked and not stats.game_active:
+        stats.scores_active = True
+        image = pygame.image.load("images/scores_bg.jpg")
+        image = pygame.transform.scale(image, (int(screen.get_rect().width), int(screen.get_rect().height)))
+        image_rect = image.get_rect()
+        image_rect = image_rect.move(0, 0)
+        screen.blit(image, image_rect)
+
+        back_btn_rect = pygame.Rect(75, 50, 200, 50)
+        screen.fill('yellow', back_btn_rect)
+        font = pygame.font.SysFont(None, 48)
+        msg_image = font.render('<<< Menu', True, 'black', 'yellow')
+        msg_image_rect = msg_image.get_rect()
+        msg_image_rect.center = back_btn_rect.center
+        screen.blit(msg_image, msg_image_rect)
+        while stats.scores_active:
+
+            draw_scores(settings, screen)
+
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
+                    if back_btn_rect.collidepoint(mouse_x, mouse_y):
+                        stats.scores_active = False
+                        draw_menu(screen, settings, image, image_rect, ship, bullets, stats, sb, aliens, play_button, scores_button, exit_button, sound_button)
+            pygame.display.flip()
     return
+
+
+def draw_scores(settings, screen):
+    try:
+        with open ('data/scores.json', 'r') as file:
+            datas = json.load(file)
+            scores = datas['scores']
+            dates = datas['dates']
+            file.close()
+    except IndexError:
+        scores = []
+        dates = []
+    for score_num in range(settings.amount_of_score_labels):
+        try:
+            lbl = ScoreLabel(screen, scores[score_num], dates[score_num], score_num)
+        except IndexError:
+            lbl = ScoreLabel(screen, '', '', score_num)
+        lbl.prep_msg()
+        lbl.draw_button()
+
+
+def draw_menu(screen, settings, image, image_rect, ship, bullets, game_stats, sb, aliens, play_button, scores_button, exit_button, sound_button):
+    screen.fill(settings.bg_color)
+    screen.blit(image, image_rect)
+    play_button.draw_button()
+    sound_button.draw_button()
+    scores_button.draw_button()
+    exit_button.draw_button()
+    check_events(ship, bullets, screen, settings, game_stats, play_button, sound_button, scores_button, exit_button, sb, aliens, image, image_rect)
+    pygame.display.flip()
+
 
 def prepare_scores_and_lvl(sb):
     sb.prep_score()
@@ -176,13 +231,13 @@ def check_fleet_edge(aliens, ai_settings, sb, stats):
             break
 
 
-def update_aliens(aliens, ai_settings, ship, bullets, stats, scoreboard, screen, play_button, sound_button, scores_button, exit_button, input_box):
+def update_aliens(aliens, ai_settings, ship, bullets, stats, scoreboard, screen):
     check_fleet_edge(aliens, ai_settings, scoreboard, stats)
     if pygame.sprite.spritecollideany(ship, aliens):
-        ship_hit(ship, aliens, bullets, stats, screen, ai_settings, scoreboard, play_button, sound_button, scores_button, exit_button, input_box)
+        ship_hit(ship, aliens, bullets, stats, screen, ai_settings, scoreboard)
     check_aliens_left = check_alien_fleet_left(aliens)
     if check_aliens_left:
-        ship_hit(ship, aliens, bullets, stats, screen, ai_settings, scoreboard, play_button, sound_button, scores_button, exit_button, input_box)
+        ship_hit(ship, aliens, bullets, stats, screen, ai_settings, scoreboard)
 
 
     return
@@ -194,7 +249,7 @@ def check_alien_fleet_left(aliens):
             return True
 
 
-def ship_hit(ship, aliens, bullets, stats, screen, settings, sb, play_button, sound_button, scores_button, exit_button, input_box):
+def ship_hit(ship, aliens, bullets, stats, screen, settings, sb):
     if stats.ships_left > 0:
         if settings.sound_active:
             ship_explosion = pygame.mixer.Sound('sounds/ship_explosion.ogg')
@@ -210,6 +265,10 @@ def ship_hit(ship, aliens, bullets, stats, screen, settings, sb, play_button, so
         bullets.empty()
         create_aliens_fleet(screen, settings, aliens, sb, stats)
     else:
+        date_time = datetime.today()
+        hour_time = datetime.now()
+        date_now = date_time.strftime("%B %d %Y")
+        hour_now = hour_time.strftime("%H:%M")
         if settings.sound_active:
             ship_explosion = pygame.mixer.Sound('sounds/ship_explosion.ogg')
             ship_explosion.play()
@@ -223,22 +282,58 @@ def ship_hit(ship, aliens, bullets, stats, screen, settings, sb, play_button, so
         score_label.msg_image_rect.centerx = screen.get_rect().centerx
         score_label.msg_image_rect.centery = score_label.rect.centery - 40
         score_label.draw_button()
-        input_box.input_box.centerx = screen.get_rect().centerx
-        input_box.input_box.centery = screen.get_rect().centery + 20
-        input_box.text_surface_rect = input_box.text_surface.get_rect()
-        input_box.text_surface_rect.center = input_box.input_box.center
-        input_box.blitme()
-        print(stats.ships_left)
+        pygame.display.flip()
+        sleep(2)
+        save_high_score(stats, settings, date_now, hour_now)
+        stats.game_active = False
+        pygame.display.flip()
 
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN:
-                        stats.game_active = False
-                        break
-                    else:
-                        check_events(ship, bullets, screen, settings, stats, play_button, sound_button, scores_button, exit_button, sb, aliens, input_box)
-                        input_box.blitme()
-                        pygame.display.flip()
-                        continue
-                pygame.display.flip()
+
+def save_high_score(stats, settings, date_now, hour_now):
+    with open('data/scores.json', 'r') as file:
+        datas = json.load(file)
+        scores = datas['scores']
+        dates = datas['dates']
+
+        print('initial', datas, scores, dates)
+
+    if len(scores) == 0:
+        print('first')
+        dates.append(f"{date_now} - {hour_now}")
+        scores.append(stats.score)
+    elif len(scores)<settings.amount_of_score_labels and len(scores)>0:
+        print('second one')
+        if str(stats.score) in str(scores):
+            pass
+        else:
+            scores.append(stats.score)
+            scores.sort()
+            if scores[0] < scores[-1]:
+                scores.reverse()
+                dates.reverse()
+            dates.insert(scores.index(stats.score), f"{date_now} - {hour_now}")
+
+    elif len(scores) >= settings.amount_of_score_labels:
+        print("third")
+        if str(stats.score) in str(scores):
+            print('i worked')
+            pass
+        else:
+            "smth wrong here"
+            scores.append(stats.score)
+            scores.sort()
+            if scores[0] < scores[-1]:
+                scores.reverse()
+                dates.reverse()
+            dates.insert(scores.index(stats.score), f"{date_now} - {hour_now}")
+            dates = dates[:7]
+            scores = scores[:7]
+    print('its true')
+
+    datas['scores'] = scores
+    datas['dates'] = dates
+    print("last:", datas)
+    datas = json.dumps(datas)
+    with open('data/scores.json', 'w') as file:
+        file.write(datas)
+        file.close()

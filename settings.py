@@ -13,3 +13,4 @@ class Settings():
         self.fleet_direction = 1
         self.level_boost = 1.5
         self.sound_active = True
+        self.amount_of_score_labels = 7
