@@ -279,8 +279,7 @@ def ship_hit(ship, aliens, bullets, stats, screen, settings, sb):
         bullets.empty()
         score_label = Button(screen, "Your score:{}".format(stats.score), screen.get_rect().width, 150)
         score_label.rect.center = screen.get_rect().center
-        score_label.msg_image_rect.centerx = screen.get_rect().centerx
-        score_label.msg_image_rect.centery = score_label.rect.centery - 40
+        score_label.msg_image_rect.center = screen.get_rect().center
         score_label.draw_button()
         pygame.display.flip()
         sleep(2)
@@ -295,14 +294,12 @@ def save_high_score(stats, settings, date_now, hour_now):
         scores = datas['scores']
         dates = datas['dates']
 
-        print('initial', datas, scores, dates)
+
 
     if len(scores) == 0:
-        print('first')
         dates.append(f"{date_now} - {hour_now}")
         scores.append(stats.score)
     elif len(scores)<settings.amount_of_score_labels and len(scores)>0:
-        print('second one')
         if str(stats.score) in str(scores):
             pass
         else:
@@ -314,9 +311,7 @@ def save_high_score(stats, settings, date_now, hour_now):
             dates.insert(scores.index(stats.score), f"{date_now} - {hour_now}")
 
     elif len(scores) >= settings.amount_of_score_labels:
-        print("third")
         if str(stats.score) in str(scores):
-            print('i worked')
             pass
         else:
             "smth wrong here"
@@ -328,11 +323,9 @@ def save_high_score(stats, settings, date_now, hour_now):
             dates.insert(scores.index(stats.score), f"{date_now} - {hour_now}")
             dates = dates[:7]
             scores = scores[:7]
-    print('its true')
 
     datas['scores'] = scores
     datas['dates'] = dates
-    print("last:", datas)
     datas = json.dumps(datas)
     with open('data/scores.json', 'w') as file:
         file.write(datas)

@@ -15,10 +15,10 @@ class Game_stats():
         self.score = 0
         self.lvl = 1
         self.ships_left = 3
-        self.ship_speed_factor = 1.5
-        self.alien_speed_factor = 5
-        self.alien_drop_speed = 10
-        self.bullet_speed_factor = 3
+        self.ship_speed_factor = self.settings.ship_speed_factor
+        self.alien_speed_factor = self.settings.alien_speed_factor
+        self.alien_drop_speed = self.settings.alien_drop_speed
+        self.bullet_speed_factor = self.settings.bullet_speed_factor
 
     def import_high_score(self):
         try:
